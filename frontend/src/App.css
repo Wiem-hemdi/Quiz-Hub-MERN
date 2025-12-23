@@ -1,0 +1,20 @@
+.App {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  font-family: Arial, Helvetica, sans-serif;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+/* Backgrounds for different pages */
+.home-bg { background-image: url("./images/home-bg.png"); }
+.main-bg { background-image: url("./images/main-bg.png"); }
+.test-bg { background-image: url("./images/test-pg.jpg"); }
+.upload-bg { background-image: url("./images/test-pg.jpg"); }
+.profile-bg { background-image: url("./images/main-bg.png"); }
+
+/* Hide scrollbar */
+::-webkit-scrollbar { display: none; }
