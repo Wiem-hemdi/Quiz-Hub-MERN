@@ -1,9 +1,8 @@
-import React from "react";
 import {
   Box,
   Flex,
   Spacer,
-  Link,
+  Link as ChakraLink,
   Text,
   Avatar,
   IconButton,
@@ -16,22 +15,37 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import { HamburgerIcon, CloseIcon } from "@chakra-ui/icons";
+import { useNavigate } from "react-router-dom"; // Add this
+import { 
+  FaTrophy, 
+  FaChartLine, 
+  FaHome, 
+  FaGamepad,
+  FaUpload
+} from "react-icons/fa";
 
 const Navbar = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const user = JSON.parse(localStorage.getItem("userInfo"));
+  const navigate = useNavigate(); // Add this
 
   const links = [
-    { name: "Give Test", href: "/testpage" },
-    { name: "Performance", href: "/performance" },
-    { name: "Upload Question", href: "/uploadQuestion" },
-    { name: "Leaderboard", href: "/leaderboard" },
+    { name: "Test", path: "/quiz", icon: <FaGamepad /> },
+    { name: "Performance", path: "/performance", icon: <FaChartLine /> },
+    { name: "Upload Question", path: "/uploadQuestion", icon: <FaUpload /> },
+    { name: "Leaderboard", path: "/leaderboard", icon: <FaTrophy /> },
   ];
+
+  // Updated handleClick function
+  const handleNavigation = (path) => {
+    navigate(path);
+    onClose(); // Close drawer on mobile
+  };
 
   return (
     <Flex
       align="center"
-      bg="rgba(255, 0, 0, 0.7)" // transparent red
+      bg="rgba(255, 0, 0, 0.7)"
       p={4}
       color="white"
       position="fixed"
@@ -39,8 +53,27 @@ const Navbar = () => {
       left={0}
       width="100%"
       zIndex={1000}
-      backdropFilter="saturate(180%) blur(10px)" // nice glass effect
+      backdropFilter="saturate(180%) blur(10px)"
     >
+      {/* Logo/Home */}
+      <ChakraLink
+        as="button"
+        onClick={() => navigate("/")}
+        _hover={{ textDecoration: "none", color: "pink.200" }}
+        display="flex"
+        alignItems="center"
+        mr={4}
+        background="none"
+        border="none"
+        color="white"
+        cursor="pointer"
+      >
+        <FaHome style={{ marginRight: "8px" }} />
+        <Text fontWeight="bold" fontSize="lg">
+          QuizHub
+        </Text>
+      </ChakraLink>
+
       {/* Hamburger for mobile */}
       <IconButton
         icon={<HamburgerIcon />}
@@ -56,7 +89,10 @@ const Navbar = () => {
         <DrawerOverlay>
           <DrawerContent bg="rgba(255, 0, 0, 0.9)" color="white">
             <DrawerHeader borderBottomWidth="1px" position="relative">
-              <Text fontWeight="bold">Menu</Text>
+              <Flex alignItems="center">
+                <FaHome style={{ marginRight: "10px" }} />
+                <Text fontWeight="bold">QuizHub Menu</Text>
+              </Flex>
               <IconButton
                 icon={<CloseIcon />}
                 size="sm"
@@ -68,25 +104,53 @@ const Navbar = () => {
               />
             </DrawerHeader>
             <DrawerBody>
-              <VStack align="start" spacing={4}>
+              <VStack align="start" spacing={4} pt={4}>
                 {links.map((link) => (
-                  <Link
-                    key={link.href}
-                    href={link.href}
+                  <ChakraLink
+                    key={link.path}
+                    as="button"
+                    onClick={() => handleNavigation(link.path)}
                     _hover={{ textDecoration: "none", color: "pink.200" }}
+                    width="100%"
+                    textAlign="left"
+                    background="none"
+                    border="none"
+                    color="white"
+                    cursor="pointer"
+                    py={2}
                   >
-                    <Text fontSize="lg">{link.name}</Text>
-                  </Link>
+                    <Flex align="center">
+                      <Box mr={3}>{link.icon}</Box>
+                      <Text fontSize="lg">{link.name}</Text>
+                    </Flex>
+                  </ChakraLink>
                 ))}
-                <Link
-                  href="/profile"
+                
+                <ChakraLink
+                  as="button"
+                  onClick={() => handleNavigation("/profile")}
                   _hover={{ textDecoration: "none", color: "pink.200" }}
+                  width="100%"
+                  mt={4}
+                  pt={4}
+                  borderTop="1px solid rgba(255,255,255,0.2)"
+                  background="none"
+                  border="none"
+                  color="white"
+                  cursor="pointer"
                 >
                   <Flex align="center">
-                    <Avatar size="sm" name={user?.name || "User"} />
-                    <Text ml={2}>Profile</Text>
+                    <Avatar size="sm" name={user?.name || "User"} mr={3} />
+                    <Box>
+                      <Text fontWeight="bold">{user?.name || "Profile"}</Text>
+                      {user?.xp && (
+                        <Text fontSize="sm" opacity={0.8}>
+                          Level {Math.floor((user.xp || 0) / 100) + 1} • {user.xp} XP
+                        </Text>
+                      )}
+                    </Box>
                   </Flex>
-                </Link>
+                </ChakraLink>
               </VStack>
             </DrawerBody>
           </DrawerContent>
@@ -94,31 +158,51 @@ const Navbar = () => {
       </Drawer>
 
       {/* Desktop menu */}
-      <Flex display={{ base: "none", md: "flex" }} align="center">
+      <Flex display={{ base: "none", md: "flex" }} align="center" ml={4}>
         {links.map((link) => (
-          <Link
-            key={link.href}
-            href={link.href}
+          <ChakraLink
+            key={link.path}
+            as="button"
+            onClick={() => navigate(link.path)}
             mr={6}
             _hover={{ textDecoration: "none", color: "pink.200" }}
+            background="none"
+            border="none"
+            color="white"
+            cursor="pointer"
           >
-            {link.name}
-          </Link>
+            <Flex align="center">
+              <Box mr={2}>{link.icon}</Box>
+              <Text fontSize="md">{link.name}</Text>
+            </Flex>
+          </ChakraLink>
         ))}
       </Flex>
 
       <Spacer />
 
       {/* Profile for desktop */}
-      <Link
-        href="/profile"
+      <ChakraLink
+        as="button"
+        onClick={() => navigate("/profile")}
         display={{ base: "none", md: "flex" }}
         alignItems="center"
         _hover={{ textDecoration: "none", color: "pink.200" }}
+        background="none"
+        border="none"
+        color="white"
+        cursor="pointer"
       >
         <Avatar size="sm" name={user?.name || "User"} />
-        <Text ml={2}>{user?.name || "Profile"}</Text>
-      </Link>
+        <Box ml={2}>
+          <Text fontWeight="medium">{user?.name || "Profile"}</Text>
+          {user?.xp && (
+            <Text fontSize="xs" opacity={0.8}>
+              Level {Math.floor((user.xp || 0) / 100) + 1}
+            </Text>
+          )}
+        </Box>
+      </ChakraLink>
     </Flex>
   );
 };

@@ -10,16 +10,25 @@
   "author": "Subrata Rudra",
   "license": "ISC",
   "dependencies": {
+    "@chakra-ui/icons": "^2.2.4",
+    "@chakra-ui/react": "^3.30.0",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "axios": "^1.13.2",
     "bcryptjs": "^2.4.3",
     "colors": "^1.4.0",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^4.22.1",
     "express-async-handler": "^1.2.0",
+    "framer-motion": "^12.23.26",
+    "howler": "^2.2.4",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^7.8.8",
     "multer": "^2.0.2",
-    "openai": "^6.15.0"
+    "openai": "^6.15.0",
+    "react-confetti": "^6.4.0",
+    "react-icons": "^5.5.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"

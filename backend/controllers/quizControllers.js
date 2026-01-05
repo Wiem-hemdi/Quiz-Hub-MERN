@@ -1,230 +1,216 @@
+// quizControllers.js
 const expressAsyncHandler = require("express-async-handler");
 const Question = require("../models/questionModel");
 const History = require("../models/historyModel");
 const Proficiency = require("../models/proficiencyModel");
+const User = require("../models/userModel");
+const calculateXP = require("../utils/calculateXP");
 
+// ====================== UTILS ======================
+
+// Convertir la réponse correcte en nombre
+function convertCorrectAnswer(correctAnswer) {
+  if (correctAnswer === undefined || correctAnswer === null) return -1;
+  if (typeof correctAnswer === "number") return correctAnswer;
+
+  if (typeof correctAnswer === "string") {
+    const trimmed = correctAnswer.trim().toUpperCase();
+    if (trimmed === "A") return 0;
+    if (trimmed === "B") return 1;
+    if (trimmed === "C") return 2;
+    if (trimmed === "D") return 3;
+
+    const num = parseInt(trimmed, 10);
+    if (!isNaN(num)) return num;
+  }
+  return -1;
+}
+
+// Questions de démonstration
+function getDemoQuestions(language_id, category) {
+  return [
+    { _id: "demo_1", desc: "Red traffic light?", options: ["Stop", "Go", "Slow", "Speed"], category, language_id, image: null },
+    { _id: "demo_2", desc: "Speed limit urban?", options: ["30 km/h", "50 km/h", "70 km/h", "90 km/h"], category, language_id, image: null },
+    { _id: "demo_3", desc: "Turn signals?", options: ["Only night", "When changing lanes", "Never", "Bad weather"], category, language_id, image: null },
+  ];
+}
+
+// Mettre à jour la compétence
 const updateProficiency = async (uid, lang_id) => {
-  let total_score_percent = 0,
-    total_accuracy = 0;
-  let prof;
   try {
-    const userHistory = await History.find({
-      user_id: uid,
-      language_id: lang_id,
-    }).select("score_percent accuracy");
-    let n = userHistory.length;
-    for (let i = 0; i < n; i++) {
-      const history = userHistory[i];
-      total_score_percent =
-        total_score_percent + parseFloat(history.score_percent);
-      total_accuracy = total_accuracy + parseFloat(history.accuracy);
-    }
-    let avg_score = total_score_percent / n;
-    let avg_accuracy = total_accuracy / n;
-    prof = (avg_accuracy + avg_score) / 2;
-  } catch (err) {
-    throw new Error(err);
-  }
-  let newProfiencyLevel;
-  if (prof >= 90) {
-    newProfiencyLevel = `Master(${parseInt(prof)})`;
-  } else if (prof >= 80) {
-    newProfiencyLevel = `Candidate Master(${parseInt(prof)})`;
-  } else if (prof >= 70) {
-    newProfiencyLevel = `Expert(${parseInt(prof)})`;
-  } else if (prof >= 60) {
-    newProfiencyLevel = `Specialist(${parseInt(prof)})`;
-  } else {
-    newProfiencyLevel = `Apprentice(${parseInt(prof)})`;
-  }
-  try {
+    const userHistory = await History.find({ user_id: uid, language_id: lang_id }).select("score_percent accuracy");
+    if (!userHistory || userHistory.length === 0) return;
+
+    let totalScore = 0, totalAccuracy = 0;
+    userHistory.forEach(h => {
+      totalScore += parseFloat(h.score_percent || 0);
+      totalAccuracy += parseFloat(h.accuracy || 0);
+    });
+
+    const avgScore = totalScore / userHistory.length;
+    const avgAccuracy = totalAccuracy / userHistory.length;
+    const prof = (avgScore + avgAccuracy) / 2;
+
+    let level;
+    if (prof >= 90) level = `Master(${parseInt(prof)})`;
+    else if (prof >= 80) level = `Candidate Master(${parseInt(prof)})`;
+    else if (prof >= 70) level = `Expert(${parseInt(prof)})`;
+    else if (prof >= 60) level = `Specialist(${parseInt(prof)})`;
+    else level = `Apprentice(${parseInt(prof)})`;
+
     await Proficiency.findOneAndUpdate(
       { user_id: uid, language_id: lang_id },
-      { proficiencyLevel: newProfiencyLevel },
-      { new: true }
+      { proficiencyLevel: level },
+      { upsert: true, new: true }
     );
+
+    console.log(`✅ Proficiency updated for user ${uid}: ${level}`);
   } catch (err) {
-    console.error(err);
+    console.error("❌ Error updating proficiency:", err);
   }
 };
 
+// ====================== CONTROLLERS ======================
+
+// Obtenir les questions
 const getQuestions = expressAsyncHandler(async (req, res) => {
   const { language_id, category } = req.body;
-  if (!language_id || !category) {
-    res.status(400);
-    throw new Error("Please send all the required details");
-  }
-  const filter = {
-    language_id: language_id,
-    category: category,
-  };
-  try {
-    const data = await Question.find(filter).select("-correct_answer");
-    res.status(200).json(data);
-  } catch (error) {
-    res.status(400);
-    throw new Error(error.message);
-  }
+  if (!language_id || !category) return res.status(400).json({ error: "Missing language_id or category" });
+
+  const questions = await Question.find({ language_id, category }).select("-correct_answer");
+  if (!questions || questions.length === 0) return res.status(200).json(getDemoQuestions(language_id, category));
+
+  res.status(200).json(questions);
 });
 
+// Obtenir les réponses et calculer score + XP
 const getAnswers = expressAsyncHandler(async (req, res) => {
-  let uid = req.body.uid;
-  let lang_id;
-  let level;
-  let positiveMarks = 0,
-    negativeMarks = 0,
-    unAttempted = 0;
-  const pairs = req.body.pairs;
-  let totalMarks = pairs.length;
-  
-  console.log("=== BACKEND: Processing answers ===");
-  console.log("Total questions:", totalMarks);
-  
-  // Tableau pour stocker les résultats détaillés
+  const { uid, pairs } = req.body;
+  if (!uid || !pairs || pairs.length === 0) return res.status(400).json({ error: "Missing uid or pairs" });
+
+  const user = await User.findById(uid);
+  if (!user) return res.status(404).json({ error: "User not found" });
+
+  // Initialiser stats
+  user.xp = user.xp || 0;
+  user.streak = user.streak || 0;
+  user.badges = user.badges || [];
+
+  let positiveMarks = 0, negativeMarks = 0, unAttempted = 0;
   const detailedPairs = [];
-  
-  for (let i = 0; i < pairs.length; i++) {
-    const pair = pairs[i];
-    let objId = pair.objectId;
-    let givenAns = pair.givenAnswer;
-    
-    try {
-      const question = await Question.findById(objId);
-      if (question) {
-        lang_id = question.language_id;
-        level = question.category;
-        
-        // 🔍 CONVERSION EN NOMBRES POUR COMPARAISON
-        const correctAns = Number(question.correct_answer);
-        const userAns = Number(givenAns);
-        const isCorrect = userAns === correctAns;
-        
-        console.log(`\nQuestion ${i + 1}:`, {
-          questionId: objId,
-          desc: question.desc.substring(0, 50) + "...",
-          correctAnswer: question.correct_answer,
-          correctAnswerType: typeof question.correct_answer,
-          givenAnswer: givenAns,
-          givenAnswerType: typeof givenAns,
-          correctAnsNum: correctAns,
-          userAnsNum: userAns,
-          isCorrect: isCorrect
-        });
-        
-        // Ajouter au tableau détaillé
-        detailedPairs.push({
-          objectId: objId,
-          isCorrect: isCorrect,
-          correctAnswer: correctAns,
-          correctAnswerText: question.options[correctAns] || "N/A",
-          givenAnswer: userAns
-        });
-        
-        if (givenAns !== "-1" && isCorrect) {
-          positiveMarks = positiveMarks + 1;
-          console.log("✅ CORRECT!");
-        } else if (givenAns !== "-1" && !isCorrect) {
-          negativeMarks = negativeMarks + 1;
-          console.log("❌ INCORRECT!");
-        } else {
-          unAttempted = unAttempted + 1;
-          console.log("⏭️ SKIPPED");
-        }
-      } else {
-        console.log("No question found with the provided objectId");
-      }
-    } catch (err) {
-      res.status(500);
-      throw new Error(err);
-    }
-  }
-  
-  console.log("\n=== RESULTS ===");
-  console.log("Correct:", positiveMarks);
-  console.log("Incorrect:", negativeMarks);
-  console.log("Unattempted:", unAttempted);
-  console.log("===============\n");
-  
-  let accuracy_val = 0;
-  if (totalMarks !== unAttempted) {
-    accuracy_val = (positiveMarks * 100) / (totalMarks - unAttempted);
-  }
-  const report = {
-    totalMarks: totalMarks,
-    corrected: positiveMarks,
-    incorrected: negativeMarks,
-    attempted: totalMarks - unAttempted,
-    unAttempted: unAttempted,
-    score: positiveMarks - negativeMarks / 2,
-    scorePercentage: ((positiveMarks - negativeMarks / 2) * 100) / totalMarks,
-    accuracy: accuracy_val,
-  };
-  
-  // ICI EST LE CHANGEMENT CRITIQUE:
-  // Retourner BOTH les pairs détaillées ET les stats
-  res.status(200).json({
-    pairs: detailedPairs, // <-- Ceci manquait!
-    report: report,
-    // Vous pouvez aussi ajouter userStats si nécessaire
-  });
 
-  try {
-    const newChapter = {
-      user_id: uid,
-      language_id: lang_id,
-      score_percent: ((positiveMarks - negativeMarks / 2) * 100) / totalMarks,
-      accuracy: accuracy_val,
-    };
-    const h = await History.create(newChapter);
-  } catch (err) {
-    res.status(400);
-    throw new Error(err);
+  let lang_id = null, level = null;
+
+  for (const pair of pairs) {
+    const question = await Question.findById(pair.objectId);
+    if (!question) continue;
+
+    lang_id = question.language_id;
+    level = question.category;
+
+    const correctAns = convertCorrectAnswer(question.correct_answer);
+    const userAns = Number(pair.givenAnswer);
+
+    let isCorrect = false, isAnswered = false;
+    if (userAns === -1 || isNaN(userAns)) {
+      unAttempted++;
+    } else {
+      isAnswered = true;
+      isCorrect = userAns === correctAns;
+      if (isCorrect) positiveMarks++; else negativeMarks++;
+    }
+
+    detailedPairs.push({
+      objectId: pair.objectId,
+      isCorrect,
+      isAnswered,
+      correctAnswer: correctAns,
+      correctAnswerText: question.options && question.options[correctAns] ? question.options[correctAns] : "N/A",
+      givenAnswer: userAns
+    });
   }
 
-  const p_level = await Proficiency.findOne({
-    user_id: uid,
-    language_id: lang_id,
-  });
-  if (p_level) {
-    updateProficiency(uid, lang_id).then();
-  } else {
-    const newUserProf = {
-      user_id: uid,
-      language_id: lang_id,
-      proficiencyLevel: "Apprentice",
-    };
-    try {
-      const isCreated = await Proficiency.create(newUserProf);
-      if (isCreated) {
-        updateProficiency(uid, lang_id).then();
-        console.log("New Proficiency created");
-      } else {
-        console.log("New Proficiency creation failed");
-      }
-    } catch (err) {
-      console.error(err);
-    }
+  const totalMarks = pairs.length;
+  const attempted = totalMarks - unAttempted;
+  const accuracy = attempted > 0 ? (positiveMarks * 100) / attempted : 0;
+  const score = positiveMarks - (negativeMarks / 2);
+  const scorePercentage = totalMarks > 0 ? (score * 100) / totalMarks : 0;
+
+  // Calculer XP via util
+  const { totalXP, newStreak } = calculateXP(positiveMarks, totalMarks, user.streak);
+
+  // Mettre à jour user
+  user.xp += totalXP;
+  user.streak = newStreak;
+  user.level = Math.floor(user.xp / 100) + 1;
+
+  // Gestion badges
+  const badges = [...user.badges];
+  if (user.xp >= 100 && !badges.includes("Beginner Badge")) badges.push("Beginner Badge");
+  if (user.streak >= 3 && !badges.includes("On Fire Badge")) badges.push("On Fire Badge");
+  if (positiveMarks >= 5 && !badges.includes("Quiz Master Badge")) badges.push("Quiz Master Badge");
+  user.badges = badges;
+
+  await user.save();
+
+  // Créer l'historique
+  if (lang_id) {
+    await History.create({ user_id: uid, language_id: lang_id, score_percent: scorePercentage, accuracy });
+    await updateProficiency(uid, lang_id);
   }
+
+  const report = { totalMarks, corrected: positiveMarks, incorrected: negativeMarks, attempted, unAttempted, score, scorePercentage, accuracy };
+
+  res.status(200).json({ success: true, pairs: detailedPairs, report, userStats: { xp: user.xp, streak: user.streak, level: user.level, badges: user.badges } });
 });
 
+// Obtenir langues distinctes
 const getLanguages = expressAsyncHandler(async (req, res) => {
   const languages = await Question.distinct("language_id");
-  if (languages) {
-    res.status(200).send(languages);
-  } else {
-    res.status(500);
-    throw new Error("Failed to find all the languages in the database");
-  }
+  const filtered = (languages || []).filter(l => l && l.trim() !== "");
+  if (filtered.length === 0) return res.status(200).json(['CODE_DE_LA_ROUTE','FRENCH','ENGLISH','ARABIC']);
+  res.status(200).json(filtered);
 });
 
+// Obtenir noms des tests (alias)
 const getTestNames = expressAsyncHandler(async (req, res) => {
-  try {
-    const testNames = await Question.distinct("language_id");
-    res.status(200).json(testNames);
-  } catch (error) {
-    res.status(400);
-    throw new Error(error.message);
-  }
+  const tests = await Question.distinct("language_id");
+  const filtered = (tests || []).filter(t => t && t.trim() !== "");
+  if (filtered.length === 0) return res.status(200).json(['CODE_DE_LA_ROUTE','FRENCH_DRIVING','ENGLISH_QUIZ','ARABIC_TEST','JAVASCRIPT_BASICS']);
+  res.status(200).json(filtered);
 });
 
-module.exports = { getQuestions, getAnswers, getLanguages, getTestNames };
+// Soumettre quiz (simplifié)
+const submitQuiz = expressAsyncHandler(async (req, res) => {
+  const { userId, answers } = req.body;
+  if (!userId || !answers || answers.length === 0) return res.status(400).json({ message: "Missing data" });
+
+  const user = await User.findById(userId);
+  if (!user) return res.status(404).json({ message: "User not found" });
+
+  // Initialiser stats
+  user.xp = user.xp || 0;
+  user.streak = user.streak || 0;
+  user.badges = user.badges || [];
+
+  const positiveMarks = answers.filter(a => a.isCorrect).length;
+  const totalMarks = answers.length;
+  const { totalXP, newStreak } = calculateXP(positiveMarks, totalMarks, user.streak);
+
+  user.xp += totalXP;
+  user.streak = newStreak;
+  user.level = Math.floor(user.xp / 100) + 1;
+
+  // Gestion badges
+  const badges = [...user.badges];
+  if (user.xp >= 100 && !badges.includes("Beginner Badge")) badges.push("Beginner Badge");
+  if (user.streak >= 3 && !badges.includes("On Fire Badge")) badges.push("On Fire Badge");
+  if (positiveMarks >= 5 && !badges.includes("Quiz Master Badge")) badges.push("Quiz Master Badge");
+  user.badges = badges;
+
+  await user.save();
+
+  res.status(200).json({ success: true, xpGained: totalXP, newStreak, level: user.level, totalXP: user.xp, badges: user.badges });
+});
+
+module.exports = { getQuestions, getAnswers, getLanguages, getTestNames, submitQuiz };

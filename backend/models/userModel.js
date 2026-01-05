@@ -11,19 +11,45 @@ const userSchema = mongoose.Schema(
   { timestamps: true }
 );
 
+// Méthode pour comparer les mots de passe
 userSchema.methods.matchPassword = async function (enteredPassword) {
-  return bcrypt.compare(enteredPassword, this.password);
+  try {
+    return await bcrypt.compare(enteredPassword, this.password);
+  } catch (error) {
+    console.error("Error in matchPassword:", error);
+    return false;
+  }
 };
 
-// This is to encrypt the password before saving it into satabase
+// CORRECTION ICI : Le hook pre-save avait une erreur
 userSchema.pre("save", async function (next) {
-  // This checks if the password is modified or not. If it is not modified, then it will progress to next step, otherwise not.
-  if (!this.isModified) {
-    next();
+  // CORRIGÉ : Vérifie si le champ password a été modifié
+  if (!this.isModified("password")) {
+    return next();
   }
 
-  const salt = await bcrypt.genSalt(10); // Generating the salt for hashing
-  this.password = await bcrypt.hash(this.password, salt); // Hashing the password with the salt
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Ajoutez aussi un hook pour la mise à jour
+userSchema.pre("findOneAndUpdate", async function (next) {
+  const update = this.getUpdate();
+  if (update.password) {
+    try {
+      const salt = await bcrypt.genSalt(10);
+      update.password = await bcrypt.hash(update.password, salt);
+      this.setUpdate(update);
+    } catch (error) {
+      return next(error);
+    }
+  }
+  next();
 });
 
 const User = mongoose.model("User", userSchema);

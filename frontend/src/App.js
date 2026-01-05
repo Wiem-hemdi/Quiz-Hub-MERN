@@ -20,9 +20,12 @@ function App() {
         <Route path="/leaderboard" element={<div className="App leaderboard-bg"><LeaderboardPage /></div>} />
         <Route path="/uploadQuestion" element={<div className="App upload-bg"><UploadQuestionPage /></div>} />
         <Route path="/performance" element={<div className="App performance-bg"><PerformanceGraph /></div>} />
+        <Route path="/quiz" element={<TestPage />} />
       </Routes>
     </ChakraProvider>
   );
 }
 
 export default App;
+
+

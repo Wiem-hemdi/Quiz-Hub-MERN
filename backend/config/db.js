@@ -1,3 +1,4 @@
+//Connexion à la base de données MongoDB
 const mongoose = require("mongoose");
 
 const connectDb = async () => {
@@ -13,4 +14,5 @@ const connectDb = async () => {
   }
 };
 
+// Exportation de la fonction pour utilisation dans server.js
 module.exports = connectDb;

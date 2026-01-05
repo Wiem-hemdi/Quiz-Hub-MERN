@@ -1,7 +1,9 @@
 const express = require("express");
 const { protect } = require("../middleware/authMiddleware");
 const uploadQuestion = require("../controllers/uploadQuestionControllers");
-const { getQuestions, getAnswers, getLanguages, getTestNames } = require("../controllers/quizControllers");
+const calculateXP = require('../utils/calculateXP');
+
+const { getQuestions, getAnswers, getLanguages, getTestNames, submitQuiz } = require('../controllers/quizControllers');
 const multer = require("multer");
 
 const router = express.Router();
@@ -16,5 +18,12 @@ router.post("/questions", protect, getQuestions);
 router.post("/answers", protect, getAnswers);
 router.get("/languages", protect, getLanguages);
 router.get("/test-names", protect, getTestNames);
+
+router.post('/calculate-xp', (req, res) => {
+  const { correctAnswers, totalQuestions, streak } = req.body;
+
+  const result = calculateXP(correctAnswers, totalQuestions, streak);
+  res.json(result);
+});
 
 module.exports = router;
