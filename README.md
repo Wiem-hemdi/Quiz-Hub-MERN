@@ -165,10 +165,10 @@ ollama serve
               │   (Collections + Index) │
               └─────────────────────────┘
                            
-              ┌─────────────────────────┐
-              │   Ollama AI Server      │
-              │   (Local LLM - phi:2.7b)│
-              └─────────────────────────┘
+              ┌───────────────────────────────────────────────┐
+              │   Ollama AI Server                            │
+              │   (Local LLM - qwen2.5:0.5b-instruct-q4_K_M)  │
+              └───────────────────────────────────────────────┘
 ```
 
 ### Relations Base de Données (1-to-Many)
