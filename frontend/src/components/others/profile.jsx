@@ -16,6 +16,7 @@ import {
   DrawerOverlay, DrawerContent, DrawerCloseButton
 } from "@chakra-ui/react";
 import Navbar from "./navbar";
+import EditProfile from "./EditProfile"; // AJOUTER CETTE LIGNE
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
@@ -51,6 +52,12 @@ const ProfilePage = () => {
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
   const { isOpen, onOpen, onClose } = useDisclosure();
+const { 
+  isOpen: isEditOpen, 
+  onOpen: onEditOpen, 
+  onClose: onEditClose 
+} = useDisclosure(); // AJOUTER CETTE LIGNE
+
 
   // Thème et couleurs
   const bgColor = useColorModeValue("gray.50", "gray.900");
@@ -248,6 +255,17 @@ const ProfilePage = () => {
             </Flex>
             
             <HStack spacing={3}>
+              <Tooltip label="Modifier Profil">
+                <IconButton
+                  aria-label="Edit Profile"
+                  icon={<FaEdit />}
+                  colorScheme="whiteAlpha"
+                  variant="outline"
+                  size="lg"
+                  onClick={onEditOpen} // CHANGER ICI
+                  _hover={{ bg: "whiteAlpha.200" }}
+                />
+              </Tooltip>
               <Tooltip label="Paramètres">
                 <IconButton
                   aria-label="Settings"
@@ -744,6 +762,18 @@ const ProfilePage = () => {
         </Flex>
       </Container>
 
+{/* Modal d'édition de profil */}
+<EditProfile 
+  isOpen={isEditOpen}
+  onClose={onEditClose}
+  userInfo={userInfo}
+  setUserInfo={(updatedUser) => {
+    // Mettre à jour l'état local
+    setUserInfo(updatedUser);
+    // Forcer le rechargement des données
+    window.location.reload();
+  }}
+/>
       {/* Modal Paramètres */}
       <Modal isOpen={isOpen} onClose={onClose} size="md">
         <ModalOverlay />

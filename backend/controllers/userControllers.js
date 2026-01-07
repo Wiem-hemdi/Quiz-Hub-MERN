@@ -38,7 +38,6 @@ const registerUser = expressAsyncHandler(async (req, res) => {
 });
 
 // Authenticate user & get token
-// Dans userControllers.js
 const authUser = expressAsyncHandler(async (req, res) => {
   try {
     console.log("🔑 Login attempt:", req.body.email);
@@ -53,7 +52,6 @@ const authUser = expressAsyncHandler(async (req, res) => {
       });
     }
 
-    // Chercher l'utilisateur
     const user = await User.findOne({ email });
     console.log("User found:", user ? "Yes" : "No");
     
@@ -65,13 +63,10 @@ const authUser = expressAsyncHandler(async (req, res) => {
       });
     }
 
-    // Vérifier le mot de passe
-    console.log("Checking password...");
     const isPasswordValid = await user.matchPassword(password);
     console.log("Password valid:", isPasswordValid);
     
     if (isPasswordValid) {
-      // Générer le token
       const token = generateToken(user._id);
       console.log("✅ Login successful for:", email);
       
@@ -103,7 +98,7 @@ const authUser = expressAsyncHandler(async (req, res) => {
     });
   }
 });
-// Get all users
+
 // Get all users (with pagination and filtering)
 const getUsers = expressAsyncHandler(async (req, res) => {
   try {
@@ -111,7 +106,6 @@ const getUsers = expressAsyncHandler(async (req, res) => {
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
     
-    // Filtres optionnels
     const filter = {};
     if (req.query.isTeacher) {
       filter.isTeacher = req.query.isTeacher === 'true';
@@ -123,13 +117,11 @@ const getUsers = expressAsyncHandler(async (req, res) => {
       ];
     }
     
-    // Récupérer les utilisateurs 
     const users = await User.find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
     
-    // Compter le total pour la pagination
     const total = await User.countDocuments(filter);
     
     res.json({
@@ -153,6 +145,7 @@ const getUsers = expressAsyncHandler(async (req, res) => {
     });
   }
 });
+
 // Get a single user by ID
 const getUserById = expressAsyncHandler(async (req, res) => {
   const user = await User.findById(req.params.id);
@@ -161,6 +154,104 @@ const getUserById = expressAsyncHandler(async (req, res) => {
   } else {
     res.status(404);
     throw new Error("User not found");
+  }
+});
+
+// Update a user by ID
+const updateUser = expressAsyncHandler(async (req, res) => {
+  try {
+    const { name, email, isTeacher, profileImage, currentPassword, newPassword } = req.body;
+    const userId = req.params.id;
+
+    console.log("📥 Update request for user:", userId);
+
+    const user = await User.findById(userId).select("+password");
+    if (!user) {
+      console.log("❌ User not found:", userId);
+      return res.status(404).json({
+        success: false,
+        error: "User not found"
+      });
+    }
+
+    if (req.user._id.toString() !== userId) {
+      console.log("❌ Not authorized:", req.user._id, "trying to update", userId);
+      return res.status(403).json({
+        success: false,
+        error: "Not authorized to update this profile"
+      });
+    }
+
+    if (email && email !== user.email) {
+      const emailExists = await User.findOne({ email });
+      if (emailExists) {
+        console.log("❌ Email already exists:", email);
+        return res.status(400).json({
+          success: false,
+          error: "Email already in use"
+        });
+      }
+    }
+
+    if (newPassword) {
+      console.log("🔑 Password update requested");
+      if (!currentPassword) {
+        console.log("❌ Current password missing");
+        return res.status(400).json({
+          success: false,
+          error: "Current password is required to set a new password"
+        });
+      }
+      
+      const isPasswordValid = await user.matchPassword(currentPassword);
+      if (!isPasswordValid) {
+        console.log("❌ Current password incorrect");
+        return res.status(401).json({
+          success: false,
+          error: "Current password is incorrect"
+        });
+      }
+      
+      console.log("✅ Password validated, updating...");
+      user.password = newPassword;
+    }
+
+    if (name !== undefined) {
+      console.log("🔄 Updating name:", user.name, "→", name);
+      user.name = name;
+    }
+    if (email !== undefined) {
+      console.log("🔄 Updating email:", user.email, "→", email);
+      user.email = email;
+    }
+    if (isTeacher !== undefined) {
+      console.log("🔄 Updating isTeacher:", user.isTeacher, "→", isTeacher);
+      user.isTeacher = isTeacher;
+    }
+    if (profileImage !== undefined) {
+      console.log("🔄 Updating profile image");
+      user.profileImage = profileImage;
+    }
+
+    await user.save();
+    console.log("💾 User saved successfully");
+
+    const updatedUser = await User.findById(userId).select("-password");
+
+    res.json({
+      success: true,
+      message: "Profile updated successfully",
+      user: updatedUser
+    });
+
+    console.log(`[${new Date().toISOString()}] User ${userId} updated profile`);
+    
+  } catch (error) {
+    console.error("❌ Error updating user:", error);
+    res.status(500).json({
+      success: false,
+      error: "Server error while updating user"
+    });
   }
 });
 
@@ -176,11 +267,12 @@ const deleteUser = expressAsyncHandler(async (req, res) => {
   }
 });
 
-
+// EXPORTS - CORRECT
 module.exports = { 
   registerUser, 
   authUser, 
   getUsers, 
   getUserById, 
+  updateUser, 
   deleteUser 
 };

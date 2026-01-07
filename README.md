@@ -45,6 +45,8 @@ Quiz Hub est une application web éducative full-stack développée pour l'appre
 - Feedback immédiat après chaque réponse
 - Correction automatique avec explications
 - Support multilingue (Français, Anglais, Arabe)
+- Sons feedback (correct/incorrect)
+
 
 ### 🏆 Gamification Avancée
 - **Système XP:** Gain d'expérience basé sur les performances
@@ -54,18 +56,21 @@ Quiz Hub est une application web éducative full-stack développée pour l'appre
 - **Niveaux:** Progression avec système de niveaux
 
 ### 🤖 Assistant IA Intégré
-- Assistant pédagogique basé sur Ollama (IA locale)
+- Intégration d'**Ollama** (IA locale) au lieu d'APIs cloud coûteuses, garantissant :
+      -  **Confidentialité** des données utilisateurs
+      -  **Zéro coût** d'API
+      -  **Personnalisation** totale des prompts
+      -  **Disponibilité** offline
 - Explications détaillées des questions
 - Suggestions contextuelles
 - Fallback multilingue
 - Confidentialité garantie (données locales)
 
-### 📊 Analytics & Dashboard
-- Graphiques de progression (ApexCharts)
-- Statistiques détaillées par catégorie
-- Historique des performances
-- Visualisation des forces et faiblesses
-- Dashboard personnel avec toutes les stats
+###  Analytics & Dashboard
+-  Graphiques progression
+-  Stats par langue/catégorie
+-  Taux de réussite
+-  Historique performances
 
 ### 👥 Gestion des Rôles
 - **Étudiants:** Participation aux quiz, suivi progression
@@ -82,7 +87,7 @@ Quiz Hub est une application web éducative full-stack développée pour l'appre
 ### Étapes d'Installation
 
 **1. Cloner le dépôt**
-git clone https://github.com/wiem-hemdi/Quiz-Hub
+git clone https://github.com/wiem-hemdi/Quiz-Hub-Mern
 cd Quiz-Hub
 **2. Configurer le Backend**
 cd backend
@@ -108,66 +113,109 @@ Le frontend tourne sur http://localhost:3000
 Ouvrez votre navigateur et allez sur : http://localhost:3000
 
 ## Ollama (Assistant IA)
+OLLAMA_URL=http://localhost:11434
+AI_MODEL=qwen2.5:0.5b-instruct-q4_K_M
 
-**Installer Ollama**
-curl -fsSL https://ollama.ai/install.sh | sh
-
-**Télécharger un modèle**
-ollama pull phi:2.7b
 
 ** Démarrer le serveur Ollama**
 ollama serve
+## 🏗️ Architecture
 
-### Authentication Endpoints
-# Signup : POST /user/
-{
-  "name": "John Doe",
-  "email": "john@example.com",
-  "password": "password123",
-  "isTeacher": false
-}
+### Architecture Globale
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        FRONTEND (React)                      │
+│  ┌──────────────┐  ┌───────────────┐  ┌─────────────────┐ │
+│  │ Auth Pages   │  │ Quiz System   │  │ Dashboard/Stats │ │
+│  │ (Login/Sign) │  │ (TestPage)    │  │ (Analytics)     │ │
+│  └──────┬───────┘  └───────┬───────┘  └────────┬────────┘ │
+│         │                  │                     │          │
+│         └──────────────────┴─────────────────────┘          │
+│                            │                                 │
+│                   ┌────────▼──────────┐                     │
+│                   │  Axios HTTP Client │                     │
+│                   └────────┬──────────┘                     │
+└────────────────────────────┼──────────────────────────────┘
+                             │
+                    ┌────────▼──────────┐
+                    │   API Gateway      │
+                    │   (CORS, Auth)     │
+                    └────────┬──────────┘
+                             │
+┌────────────────────────────▼──────────────────────────────┐
+│                    BACKEND (Express.js)                    │
+│  ┌──────────────┐  ┌──────────────┐  ┌─────────────────┐ │
+│  │ Auth Routes  │  │ Quiz Routes  │  │ Performance     │ │
+│  │ (JWT)        │  │ (CRUD)       │  │ Routes          │ │
+│  └──────┬───────┘  └──────┬───────┘  └────────┬────────┘ │
+│         │                  │                    │          │
+│  ┌──────▼──────────────────▼────────────────────▼────────┐ │
+│  │              Controllers Layer                         │ │
+│  │  (Business Logic, XP Calculation, AI Integration)     │ │
+│  └───────────────────────┬────────────────────────────────┘ │
+│                          │                                  │
+│  ┌───────────────────────▼────────────────────────────────┐ │
+│  │              Models Layer (Mongoose)                   │ │
+│  │  User │ Question │ History │ Proficiency │ QuizScore  │ │
+│  └───────────────────────┬────────────────────────────────┘ │
+└──────────────────────────┼────────────────────────────────┘
+                           │
+              ┌────────────▼────────────┐
+              │   MongoDB Database      │
+              │   (Collections + Index) │
+              └─────────────────────────┘
+                           
+              ┌─────────────────────────┐
+              │   Ollama AI Server      │
+              │   (Local LLM - phi:2.7b)│
+              └─────────────────────────┘
+```
 
+### Relations Base de Données (1-to-Many)
+```
+User (1) ──┬─── Question (N)     [user créateur]
+           ├─── History (N)      [performances]
+           ├─── Proficiency (N)  [compétences par langue]
+           └─── QuizScore (N)    [scores détaillés]
+```
 
-Réponse:
+## 📡 API Endpoints
 
-{
-  "success": true,
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "user": {
-    "_id": "123456789",
-    "name": "John Doe",
-    "email": "john@example.com",
-    "isTeacher": false,
-    "xp": 0,
-    "level": 1
-  }
-}
-### Quiz Endpoints :
-GET /api/quiz/upload
-[
-  {
-    "lang_id": "arabic",
-    "category": "Code de la route",
-    "desc": "ما هي سرعة القيادة القصوى داخل المدينة؟",
-    "option1": "50 كم/س",
-    "option2": "70 كم/س",
-    "option3": "90 كم/س",
-    "option4": "110 كم/س",
-    "correct_answer": "0"
-  },
-  {
-    "lang_id": "arabic",
-    "category": "Code de la route",
-    "desc": "ما معنى إشارة STOP؟",
-    "option1": "توقف مؤقت",
-    "option2": "توقف كامل",
-    "option3": "استمر بحذر",
-    "option4": "أعطِ الأولوية فقط",
-    "correct_answer": "1"
-  }
-]
+### Authentication
+```http
+POST   /api/user/signup        # Inscription
+POST   /api/user/login         # Connexion
+GET    /api/user/profile       # Profil (protégé)
+PUT    /api/user/profile       # Mise à jour profil
+DELETE /api/user/profile       # Suppression compte
+```
 
+### Quiz
+```http
+GET    /quiz/languages         # Liste langues disponibles
+GET    /quiz/test-names        # Liste tests disponibles
+POST   /quiz/questions         # Récupérer questions (body: language_id, category)
+POST   /quiz/answers           # Soumettre réponses + correction
+POST   /quiz/upload            # Upload question (enseignants uniquement)
+```
+
+### Performance & Stats
+```http
+GET    /performance/history/:userId    # Historique performances
+GET    /performance/leaderboard        # Classement global
+GET    /performance/proficiency/:userId/:langId  # Niveau compétence
+DELETE /performance/history/:userId    # Réinitialiser historique
+```
+
+### AI Tutor
+```http
+POST   /ai/tutor/explain      # Explication IA (body: question, userAnswer, correctAnswer)
+```
+
+### User Stats
+```http
+GET    /user-stats/:userId    # XP, badges, streak
 ### Note: 
 
-Ce projet a été développé dans le cadre d'un projet de fin d'études et sert de démonstration des compétences en développement full-stack avec les technologies MERN.
+Ce projet a été développé dans le cadre d'un projet de fin d'études et sert de démonstration des compétences en développement full-stack avec les technologies MERN en integrant un modèle intelligent.
 

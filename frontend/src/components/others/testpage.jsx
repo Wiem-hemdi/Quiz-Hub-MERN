@@ -1214,108 +1214,256 @@ const TestPage = () => {
         </Tabs>
       </Container>
 
-      {/* Modal de fin de quiz */}
-      <Modal isOpen={isOpen} onClose={onClose} size="xl" isCentered>
-        <ModalOverlay backdropFilter="blur(10px)" />
-        <ModalContent borderRadius="2xl" overflow="hidden" bg={cardBg}>
-          <ModalHeader 
-            bgGradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-            color="white"
-            textAlign="center"
-            py={8}
+
+{/* Modal de fin de quiz */}
+<Modal isOpen={isOpen} onClose={onClose} size="xl" isCentered>
+  <ModalOverlay backdropFilter="blur(10px)" />
+  <ModalContent borderRadius="2xl" overflow="hidden" bg={cardBg}>
+    <ModalHeader 
+      bgGradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+      color="white"
+      textAlign="center"
+      py={8}
+    >
+      <VStack>
+        <Icon as={FaTrophy} boxSize={12} />
+        <Heading size="xl">Quiz Terminé ! 🎉</Heading>
+      </VStack>
+    </ModalHeader>
+    <ModalCloseButton color="white" />
+    <ModalBody py={8}>
+      <VStack spacing={8}>
+        {/* Score principal */}
+        <Box textAlign="center">
+          <Text fontSize="5xl" fontWeight="bold" bgGradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)" bgClip="text">
+            {correctCount}/{answeredQuestions}
+          </Text>
+          <Text fontSize="xl" color="gray.600">
+            {answeredQuestions > 0 ? ((correctCount / answeredQuestions) * 100).toFixed(0) : 0}% de réussite
+          </Text>
+        </Box>
+        
+        {/* Badge Earned - SECTION AJOUTÉE */}
+        {showBadge && earnedBadge && (
+          <MotionBox
+            initial={{ scale: 0, rotate: -180 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ 
+              type: "spring", 
+              stiffness: 260, 
+              damping: 20,
+              delay: 0.3 
+            }}
+            width="100%"
           >
-            <VStack>
-              <Icon as={FaTrophy} boxSize={12} />
-              <Heading size="xl">Quiz Terminé ! 🎉</Heading>
-            </VStack>
-          </ModalHeader>
-          <ModalCloseButton color="white" />
-          <ModalBody py={8}>
-            <VStack spacing={8}>
-              {/* Score principal */}
-              <Box textAlign="center">
-                <Text fontSize="5xl" fontWeight="bold" bgGradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)" bgClip="text">
-                  {correctCount}/{answeredQuestions}
-                </Text>
-                <Text fontSize="xl" color="gray.600">
-                  {answeredQuestions > 0 ? ((correctCount / answeredQuestions) * 100).toFixed(0) : 0}% de réussite
-                </Text>
-              </Box>
-              
-              {/* Statistiques */}
-              <SimpleGrid columns={3} spacing={4} width="100%">
-                <Box textAlign="center" p={4} bg="green.50" borderRadius="xl">
-                  <StatNumber color="green.600" fontSize="2xl">{correctCount}</StatNumber>
-                  <StatLabel>Correctes</StatLabel>
-                </Box>
-                <Box textAlign="center" p={4} bg="red.50" borderRadius="xl">
-                  <StatNumber color="red.600" fontSize="2xl">{incorrectCount}</StatNumber>
-                  <StatLabel>Incorrectes</StatLabel>
-                </Box>
-                <Box textAlign="center" p={4} bg="gray.100" borderRadius="xl">
-                  <StatNumber color="gray.600" fontSize="2xl">{unansweredQuestions}</StatNumber>
-                  <StatLabel>Non répondues</StatLabel>
-                </Box>
-              </SimpleGrid>
-              
-              {/* Score */}
-              <Box 
-                bgGradient="linear-gradient(135deg, #f6d365 0%, #fda085 100%)"
-                p={6}
-                borderRadius="xl"
-                width="100%"
-                textAlign="center"
-                color="white"
-              >
-                <Text fontSize="xl" fontWeight="bold">
-                  🎯 Score : {sessionScore} points
-                </Text>
-                <Text>
-                  XP Total : {userStats.xp} • Niveau {userLevel}
-                </Text>
-              </Box>
-              
-              {/* Badge */}
-              {showBadge && (
-                <MotionBox
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                >
-                  <Box 
-                    bgGradient="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)"
-                    p={6}
-                    borderRadius="xl"
-                    width="100%"
-                    textAlign="center"
-                    color="white"
-                  >
-                    <Icon as={FaMedal} boxSize={8} mb={2} />
-                    <Text fontSize="lg" fontWeight="bold">
-                      🏆 {earnedBadge} 🏆
-                    </Text>
-                  </Box>
-                </MotionBox>
-              )}
-            </VStack>
-          </ModalBody>
-          <ModalFooter>
-            <Button 
-              colorScheme="purple"
-              onClick={() => { 
-                onClose(); 
-                setShowConfetti(false);
-              }} 
-              size="lg"
+            <Box 
+              position="relative"
+              bgGradient="linear-gradient(135deg, #f6d365 0%, #fda085 100%)"
+              p={8}
+              borderRadius="xl"
               width="100%"
-              leftIcon={<FaRocket />}
-              bgGradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-              _hover={{ transform: "translateY(-2px)", boxShadow: "xl" }}
+              textAlign="center"
+              color="white"
+              boxShadow="0 20px 60px rgba(245, 87, 108, 0.4)"
+              overflow="hidden"
             >
-              Continuer l'apprentissage
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+              {/* Effet de brillance */}
+              <Box
+                position="absolute"
+                top="0"
+                left="0"
+                right="0"
+                height="4px"
+                bg="rgba(255, 255, 255, 0.4)"
+                filter="blur(8px)"
+              />
+              
+              {/* Contenu du badge */}
+              <VStack spacing={4}>
+                <MotionBox
+                  animate={{ 
+                    rotate: [0, 10, -10, 10, 0],
+                    scale: [1, 1.1, 1, 1.1, 1]
+                  }}
+                  transition={{ 
+                    duration: 2,
+                    repeat: Infinity,
+                    repeatType: "reverse"
+                  }}
+                >
+                  <Icon as={FaMedal} boxSize={16} color="gold" />
+                </MotionBox>
+                
+                <Box>
+                  <Text fontSize="sm" fontWeight="bold" opacity={0.9} mb={1}>
+                    NOUVEAU BADGE DÉBLOQUÉ !
+                  </Text>
+                  <Heading size="lg" mb={2}>
+                    🏆 {earnedBadge} 🏆
+                  </Heading>
+                  <Text fontSize="sm" opacity={0.9}>
+                    Félicitations ! Ce badge a été ajouté à votre collection.
+                  </Text>
+                </Box>
+                
+                {/* Description du badge */}
+                <Box 
+                  bg="rgba(255, 255, 255, 0.2)" 
+                  p={3} 
+                  borderRadius="lg"
+                  mt={2}
+                >
+                  <Text fontSize="sm" fontWeight="bold">
+                    {earnedBadge === "🎯 Perfectionniste" && "Score parfait à toutes les questions"}
+                    {earnedBadge === "🏆 Expert" && "Plus de 80% de réponses correctes"}
+                    {earnedBadge === "🔥 Streak Master" && "Série de 10 bonnes réponses consécutives"}
+                    {earnedBadge === "🚀 Débutant" && "Premier quiz réussi"}
+                  </Text>
+                </Box>
+              </VStack>
+              
+              {/* Étoiles décoratives */}
+              <Box position="absolute" top="15px" left="20px">
+                <Icon as={FaStar} color="rgba(255, 255, 255, 0.6)" />
+              </Box>
+              <Box position="absolute" top="15px" right="20px">
+                <Icon as={FaStar} color="rgba(255, 255, 255, 0.6)" />
+              </Box>
+            </Box>
+          </MotionBox>
+        )}
+        
+        {/* Statistiques */}
+        <SimpleGrid columns={3} spacing={4} width="100%">
+          {[
+            { value: correctCount, label: "Correctes", color: "green", bg: "green.50" },
+            { value: incorrectCount, label: "Incorrectes", color: "red", bg: "red.50" },
+            { value: unansweredQuestions, label: "Non répondues", color: "gray", bg: "gray.100" }
+          ].map((stat, index) => (
+            <Box key={index} textAlign="center" p={4} bg={stat.bg} borderRadius="xl">
+              <Text fontSize="2xl" fontWeight="bold" color={`${stat.color}.600`}>
+                {stat.value}
+              </Text>
+              <Text fontSize="sm" color={`${stat.color}.700`} fontWeight="medium">
+                {stat.label}
+              </Text>
+            </Box>
+          ))}
+        </SimpleGrid>
+        
+        {/* Score et XP */}
+        <Box 
+          bgGradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+          p={6}
+          borderRadius="xl"
+          width="100%"
+          textAlign="center"
+          color="white"
+        >
+          <VStack spacing={3}>
+            <Text fontSize="xl" fontWeight="bold">
+              🎯 Score Final : {sessionScore} points
+            </Text>
+            <Divider borderColor="whiteAlpha.400" />
+            <SimpleGrid columns={2} spacing={4} width="100%">
+              <Box>
+                <Text fontSize="sm" opacity={0.9}>XP Gagné</Text>
+                <Text fontSize="lg" fontWeight="bold">
+                  +{correctCount * 10} XP
+                </Text>
+              </Box>
+              <Box>
+                <Text fontSize="sm" opacity={0.9}>Niveau</Text>
+                <Text fontSize="lg" fontWeight="bold">
+                  {userLevel}
+                </Text>
+              </Box>
+            </SimpleGrid>
+          </VStack>
+        </Box>
+        
+        {/* Si aucun badge mais score élevé, montrer ce qu'il manque */}
+        {!showBadge && correctCount === questions.length && questions.length > 0 && (
+          <Box 
+            bg="blue.50" 
+            p={6} 
+            borderRadius="xl"
+            borderWidth="1px"
+            borderColor="blue.200"
+            width="100%"
+            textAlign="center"
+          >
+            <Text fontSize="lg" fontWeight="bold" color="blue.700" mb={2}>
+              🎯 Score Parfait !
+            </Text>
+            <Text color="blue.600">
+              Vous avez déjà le badge Perfectionniste ! Essayez d'autres tests pour gagner plus de badges.
+            </Text>
+          </Box>
+        )}
+        
+        {/* Résumé de la performance */}
+        <Box 
+          p={6} 
+          borderRadius="xl"
+          borderWidth="1px"
+          borderColor={borderColor}
+          width="100%"
+        >
+          <Heading size="md" mb={4} color={textColor}>
+            📊 Résumé de votre performance
+          </Heading>
+          <SimpleGrid columns={2} spacing={4}>
+            <Box>
+              <Text color="gray.600" fontSize="sm">Temps moyen par question</Text>
+              <Text fontSize="lg" fontWeight="bold">{timeLeft < 30 ? Math.floor((30 - timeLeft) / answeredQuestions * 10) / 10 : 0}s</Text>
+            </Box>
+            <Box>
+              <Text color="gray.600" fontSize="sm">Série la plus longue</Text>
+              <Text fontSize="lg" fontWeight="bold" color="orange.500">
+                {userStats.streak} 🔥
+              </Text>
+            </Box>
+          </SimpleGrid>
+        </Box>
+      </VStack>
+    </ModalBody>
+    <ModalFooter>
+      <HStack spacing={4} width="100%">
+        <Button 
+          variant="outline"
+          onClick={() => { 
+            onClose(); 
+            setShowConfetti(false);
+            // Recharger le quiz
+            if (langId && category) {
+              getQuestions(langId, category);
+            }
+          }} 
+          size="lg"
+          flex={1}
+        >
+          Recommencer
+        </Button>
+        <Button 
+          colorScheme="purple"
+          onClick={() => { 
+            onClose(); 
+            setShowConfetti(false);
+          }} 
+          size="lg"
+          flex={2}
+          leftIcon={<FaRocket />}
+          bgGradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+          _hover={{ transform: "translateY(-2px)", boxShadow: "xl" }}
+        >
+          Continuer l'apprentissage
+        </Button>
+      </HStack>
+    </ModalFooter>
+  </ModalContent>
+</Modal>
+ 
 
       {/* Drawer Assistant IA */}
       <Drawer 
